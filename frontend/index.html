@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WorldBank Research Copilot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a28;--bg4:#222235;
+  --border:#2a2a40;--border2:#35355a;
+  --text:#e8e8f0;--text2:#9898b8;--text3:#5a5a80;
+  --accent:#6c63ff;--accent2:#8b83ff;--accent-bg:rgba(108,99,255,0.08);
+  --green:#3ecf7c;--green-bg:rgba(62,207,124,0.1);
+  --orange:#fb923c;--red:#f87171;
+  --radius:12px;--radius-sm:8px;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.app{display:flex;height:100vh}
+
+/* Sidebar */
+.sidebar{width:280px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.logo{padding:24px 20px;border-bottom:1px solid var(--border)}
+.logo h1{font-size:16px;font-weight:600;color:var(--accent2)}
+.logo p{font-size:11px;color:var(--text3);margin-top:4px}
+.nav{padding:12px 10px;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;margin-bottom:2px}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--accent-bg);color:var(--accent2);font-weight:500}
+.nav-item .icon{font-size:16px}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.header{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.header h2{font-size:15px;font-weight:600}
+.status-badge{font-size:11px;padding:4px 12px;border-radius:20px;background:var(--green-bg);color:var(--green);font-weight:500}
+
+/* Content panels */
+.panel{display:none;flex:1;overflow-y:auto;padding:24px 28px}
+.panel.active{display:flex;flex-direction:column}
+
+/* Research panel */
+.input-section{margin-bottom:24px}
+.input-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.input-row{display:flex;gap:10px}
+.query-input{flex:1;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+.query-input:focus{border-color:var(--accent)}
+.btn{padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn:hover{background:var(--accent2);transform:translateY(-1px)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Results */
+.result-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;animation:fadeIn .3s ease}
+.result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.result-title{font-size:13px;font-weight:600;color:var(--accent2)}
+.result-meta{font-size:11px;color:var(--text3)}
+.result-body{font-size:13.5px;color:var(--text2);line-height:1.75;white-space:pre-wrap}
+.result-body strong{color:var(--text)}
+
+/* Compare panel */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.compare-input{padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.compare-input:focus{border-color:var(--accent)}
+
+/* Metrics panel */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
+.metric-value{font-size:28px;font-weight:700;color:var(--accent2);margin-bottom:4px}
+.metric-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+
+/* Pipeline panel */
+.pipeline-log{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-family:'Fira Code',monospace;font-size:12px;color:var(--text2);line-height:1.8;max-height:400px;overflow-y:auto;white-space:pre-wrap}
+
+/* Loading */
+.loading{display:flex;align-items:center;gap:8px;padding:16px;color:var(--text3);font-size:13px}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Responsive */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .compare-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <h1>🌍 WorldBank Copilot</h1>
+      <p>AI Research Assistant</p>
+    </div>
+    <div class="nav">
+      <div class="nav-item active" onclick="showPanel('research')">
+        <span class="icon">🔍</span> Research
+      </div>
+      <div class="nav-item" onclick="showPanel('compare')">
+        <span class="icon">📊</span> Compare Countries
+      </div>
+      <div class="nav-item" onclick="showPanel('pipeline')">
+        <span class="icon">⚡</span> Data Pipeline
+      </div>
+      <div class="nav-item" onclick="showPanel('metrics')">
+        <span class="icon">📈</span> Metrics
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div>Powered by Groq · Llama 3.3 70B</div>
+      <div style="margin-top:4px">World Bank API (free)</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+    <div class="header">
+      <h2 id="page-title">Research</h2>
+      <span class="status-badge" id="status-badge">● Connected</span>
+    </div>
+
+    <!-- Research Panel -->
+    <div id="panel-research" class="panel active">
+      <div class="input-section">
+        <div class="input-label">Ask a question about global development</div>
+        <div class="input-row">
+          <input class="query-input" id="research-input" placeholder="e.g., Compare GDP per capita of India and China over the last decade" onkeypress="if(event.key==='Enter')doResearch()">
+          <button class="btn" id="research-btn" onclick="doResearch()">Research</button>
+        </div>
+      </div>
+      <div id="research-results"></div>
+    </div>
+
+    <!-- Compare Panel -->
+    <div id="panel-compare" class="panel">
+      <div class="input-section">
+        <div class="input-label">Compare countries on an indicator</div>
+        <div class="compare-grid">
+          <input class="compare-input" id="compare-countries" placeholder="Country codes (comma-separated): IN, CN, US, BR, DE">
+          <input class="compare-input" id="compare-indicator" placeholder="Indicator: NY.GDP.PCAP.CD" value="NY.GDP.PCAP.CD">
+        </div>
+        <button class="btn" id="compare-btn" onclick="doCompare()">Compare (Parallel)</button>
+      </div>
+      <div id="compare-results"></div>
+    </div>
+
+    <!-- Pipeline Panel -->
+    <div id="panel-pipeline" class="panel">
+      <div class="input-section">
+        <div class="input-label">Data Ingestion Pipeline</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px">
+          Downloads World Bank data, normalizes to CSV, and persists to SQLite. Same pattern as production data engineering.
+        </p>
+        <div style="display:flex;gap:10px">
+          <button class="btn" onclick="runPipeline(true)">🚀 Quick Run (3 indicators)</button>
+          <button class="btn btn-outline" onclick="runPipeline(false)">Full Run (10 indicators)</button>
+          <button class="btn btn-outline" onclick="checkDataStatus()">📋 Check Data Status</button>
+        </div>
+      </div>
+      <div class="pipeline-log" id="pipeline-log">Ready to run pipeline...\n</div>
+    </div>
+
+    <!-- Metrics Panel -->
+    <div id="panel-metrics" class="panel">
+      <div class="input-section">
+        <div class="input-label">Performance Metrics</div>
+        <button class="btn btn-outline" onclick="loadMetrics()" style="margin-bottom:16px">🔄 Refresh</button>
+      </div>
+      <div class="metrics-grid" id="metrics-grid">
+        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">Cache Hits</div></div>
+        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">Cache Hit Rate</div></div>
+        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">P50 Latency</div></div>
+        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">P95 Latency</div></div>
+        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">Total Requests</div></div>
+        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">Cache Backend</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8002';
+
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`panel-${name}`).classList.add('active');
+  event.currentTarget.classList.add('active');
+  const titles = {research:'Research',compare:'Compare Countries',pipeline:'Data Pipeline',metrics:'Metrics'};
+  document.getElementById('page-title').textContent = titles[name] || name;
+  if(name === 'metrics') loadMetrics();
+}
+
+async function doResearch() {
+  const input = document.getElementById('research-input');
+  const btn = document.getElementById('research-btn');
+  const results = document.getElementById('research-results');
+  if(!input.value.trim()) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Researching...';
+  results.innerHTML = '<div class="loading"><div class="spinner"></div>Analyzing with AI agent (this may take 10-30s)...</div>';
+
+  try {
+    const resp = await fetch(`${API}/research`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({question: input.value})
+    });
+    const data = await resp.json();
+
+    results.innerHTML = `
+      <div class="result-card">
+        <div class="result-header">
+          <div class="result-title">📋 Analysis</div>
+          <div class="result-meta">${new Date().toLocaleTimeString()}</div>
+        </div>
+        <div class="result-body">${escapeHtml(data.analysis || data.detail || 'No analysis returned')}</div>
+      </div>
+    `;
+  } catch(e) {
+    results.innerHTML = `<div class="result-card"><div class="result-body" style="color:var(--red)">Error: ${e.message}. Is the server running? (uvicorn app.main:app --port 8002)</div></div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = 'Research';
+}
+
+async function doCompare() {
+  const countries = document.getElementById('compare-countries').value || 'IN,CN,US';
+  const indicator = document.getElementById('compare-indicator').value || 'NY.GDP.PCAP.CD';
+  const btn = document.getElementById('compare-btn');
+  const results = document.getElementById('compare-results');
+
+  btn.disabled = true;
+  results.innerHTML = '<div class="loading"><div class="spinner"></div>Fetching in parallel...</div>';
+
+  try {
+    const codes = countries.split(',').map(c => c.trim().toUpperCase());
+    const resp = await fetch(`${API}/compare`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({countries: codes, indicator})
+    });
+    const data = await resp.json();
+
+    let html = `
+      <div class="result-card">
+        <div class="result-header">
+          <div class="result-title">⚡ Parallel Fetch Results</div>
+          <div class="result-meta">
+            Parallel: ${data.parallel_latency_ms}ms · 
+            Sequential est: ${data.sequential_estimate_ms}ms · 
+            <strong style="color:var(--green)">Speedup: ${data.speedup_percent}%</strong>
+          </div>
+        </div>
+      </div>
+    `;
+
+    if(data.comparison) {
+      data.comparison.forEach(c => {
+        if(c.data && c.data.length > 0) {
+          const latest = c.data[0];
+          html += `
+            <div class="result-card">
+              <div class="result-header">
+                <div class="result-title">${c.country_name || c.country} (${c.country})</div>
+                <div class="result-meta">${c.total_records} data points</div>
+              </div>
+              <div class="result-body">Latest (${latest.year}): <strong>${Number(latest.value).toLocaleString()}</strong>\n${c.indicator_name || ''}</div>
+            </div>`;
+        }
+      });
+    }
+    results.innerHTML = html;
+  } catch(e) {
+    results.innerHTML = `<div class="result-card"><div class="result-body" style="color:var(--red)">Error: ${e.message}</div></div>`;
+  }
+  btn.disabled = false;
+}
+
+async function runPipeline(quick) {
+  const log = document.getElementById('pipeline-log');
+  log.textContent = `Starting ${quick ? 'quick' : 'full'} pipeline run...\n`;
+
+  try {
+    const resp = await fetch(`${API}/pipeline/run?quick=${quick}`, {method:'POST'});
+    const data = await resp.json();
+    log.textContent += `\n✅ Pipeline complete!\n`;
+    log.textContent += `Total records: ${data.total_records}\n`;
+    log.textContent += `Duration: ${data.total_duration_seconds}s\n`;
+    log.textContent += `Database: ${data.database}\n\n`;
+
+    if(data.indicators) {
+      for(const [code, info] of Object.entries(data.indicators)) {
+        log.textContent += `📊 ${info.name}: ${info.db_inserted} inserted (${info.duration_seconds}s)\n`;
+      }
+    }
+  } catch(e) {
+    log.textContent += `\n❌ Error: ${e.message}\n`;
+  }
+}
+
+async function checkDataStatus() {
+  const log = document.getElementById('pipeline-log');
+  try {
+    const resp = await fetch(`${API}/data/status`);
+    const data = await resp.json();
+    log.textContent = '📋 Data Status\n' + '='.repeat(50) + '\n\n';
+    if(data.indicators && data.indicators.length) {
+      data.indicators.forEach(i => {
+        log.textContent += `${i.indicator_code}: ${i.records} records, ${i.countries} countries (${i.year_range})\n`;
+      });
+    } else {
+      log.textContent += 'No data yet. Run the pipeline first!\n';
+    }
+  } catch(e) {
+    log.textContent += `Error: ${e.message}\n`;
+  }
+}
+
+async function loadMetrics() {
+  try {
+    const resp = await fetch(`${API}/metrics`);
+    const data = await resp.json();
+    const grid = document.getElementById('metrics-grid');
+    grid.innerHTML = `
+      <div class="metric-card"><div class="metric-value">${data.cache?.hits || 0}</div><div class="metric-label">Cache Hits</div></div>
+      <div class="metric-card"><div class="metric-value">${data.cache?.hit_rate_percent || 0}%</div><div class="metric-label">Cache Hit Rate</div></div>
+      <div class="metric-card"><div class="metric-value">${data.latency?.p50_ms || 0}ms</div><div class="metric-label">P50 Latency</div></div>
+      <div class="metric-card"><div class="metric-value">${data.latency?.p95_ms || 0}ms</div><div class="metric-label">P95 Latency</div></div>
+      <div class="metric-card"><div class="metric-value">${data.latency?.total_requests || 0}</div><div class="metric-label">Total Requests</div></div>
+      <div class="metric-card"><div class="metric-value">${data.cache?.backend || '-'}</div><div class="metric-label">Cache Backend</div></div>
+    `;
+  } catch(e) {
+    document.getElementById('metrics-grid').innerHTML = `<div class="metric-card"><div class="metric-value" style="font-size:14px;color:var(--red)">Server offline</div><div class="metric-label">Start with: uvicorn app.main:app --port 8002</div></div>`;
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// check server on load
+fetch(`${API}/health`).then(r=>r.json()).then(()=>{
+  document.getElementById('status-badge').textContent = '● Connected';
+}).catch(()=>{
+  document.getElementById('status-badge').textContent = '● Offline';
+  document.getElementById('status-badge').style.background = 'rgba(248,113,113,0.1)';
+  document.getElementById('status-badge').style.color = 'var(--red)';
+});
+</script>
+</body>
+</html>
