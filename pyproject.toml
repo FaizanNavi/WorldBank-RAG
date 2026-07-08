@@ -1,0 +1,44 @@
+[project]
+name = "worldbank-research-copilot"
+version = "1.0.0"
+description = "AI-powered global development data analysis with parallel tool calling"
+requires-python = ">=3.11"
+dependencies = [
+    # Core
+    "fastapi==0.115.0",
+    "uvicorn==0.30.0",
+    "python-dotenv==1.0.1",
+    "pydantic==2.9.0",
+    # LLM
+    "langchain==0.3.0",
+    "langchain-openai==0.2.0",
+    "langchain-groq==0.2.0",
+    "langchain-core==0.3.0",
+    "tiktoken==0.7.0",
+    # Async HTTP
+    "aiohttp==3.10.0",
+    # Data
+    "pandas==2.2.0",
+    # UI
+    "streamlit>=1.35.0",
+]
+
+[project.optional-dependencies]
+# Install with:  uv sync --extra redis
+redis = [
+    "redis==5.0.0",
+]
+dev = [
+    "pytest==8.3.0",
+    "pytest-asyncio==0.24.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.3.0",
+    "pytest-asyncio==0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths    = ["tests"]

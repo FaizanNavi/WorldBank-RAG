@@ -1,4 +1,5 @@
 import os
+import sys
 import csv
 import json
 import sqlite3
@@ -9,6 +10,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from ..utils.config import WB_BASE_URL
+
+# Ensure UTF-8 output even on Windows terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 logger = logging.getLogger(__name__)
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
 CSV_DIR = DATA_DIR / "csv"
@@ -40,40 +46,67 @@ class DataPipeline:
         CSV_DIR.mkdir(parents=True, exist_ok=True)
         RAW_DIR.mkdir(parents=True, exist_ok=True)
     def _init_db(self):
+        """Create tables, migrate missing columns, then create indexes — all in order."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
+
+        # ── 1. Create tables with minimal guaranteed columns ──────────────
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS indicators (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                country_code TEXT NOT NULL,
-                country_name TEXT NOT NULL,
-                indicator_code TEXT NOT NULL,
-                indicator_name TEXT NOT NULL,
-                year INTEGER NOT NULL,
-                value REAL NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(country_code, indicator_code, year)
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                country_code TEXT    NOT NULL DEFAULT '',
+                year         INTEGER NOT NULL DEFAULT 0,
+                value        REAL    NOT NULL DEFAULT 0
             )
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_indicator_country
-            ON indicators(indicator_code, country_code)
         """)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pipeline_runs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                indicator_code TEXT NOT NULL,
-                countries_count INTEGER,
-                records_inserted INTEGER,
-                records_skipped INTEGER,
-                errors TEXT,
-                duration_seconds REAL
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         conn.commit()
+
+        # ── 2. Migrate: add columns missing from older DB schemas ─────────
+        _REQUIRED = {
+            "indicators": [
+                ("country_name",   "TEXT NOT NULL DEFAULT ''"),
+                ("indicator_code", "TEXT NOT NULL DEFAULT ''"),
+                ("indicator_name", "TEXT NOT NULL DEFAULT ''"),
+                ("created_at",     "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ],
+            "pipeline_runs": [
+                ("indicator_code",   "TEXT NOT NULL DEFAULT ''"),
+                ("countries_count",  "INTEGER"),
+                ("records_inserted", "INTEGER"),
+                ("records_skipped",  "INTEGER"),
+                ("errors",           "TEXT"),
+                ("duration_seconds", "REAL"),
+            ],
+        }
+        for table, cols in _REQUIRED.items():
+            cursor.execute(f"PRAGMA table_info({table})")
+            existing = {row[1] for row in cursor.fetchall()}
+            for col_name, col_def in cols:
+                if col_name not in existing:
+                    cursor.execute(
+                        f"ALTER TABLE {table} ADD COLUMN {col_name} {col_def}"
+                    )
+                    logger.info(f"Migration: added '{col_name}' to table '{table}'")
+        conn.commit()
+
+        # ── 3. Create indexes (safe now that all columns exist) ───────────
+        try:
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_indicator_country
+                ON indicators(indicator_code, country_code)
+            """)
+            conn.commit()
+        except sqlite3.OperationalError as exc:
+            logger.warning(f"Index creation skipped: {exc}")
+
         conn.close()
-        logger.info(f"Database initialized at {self.db_path}")
+        logger.info(f"Database ready at {self.db_path}")
     async def fetch_indicator_data(
         self,
         indicator_code: str,
@@ -205,16 +238,16 @@ class DataPipeline:
         countries = countries or POPULAR_COUNTRIES
         results = {}
         total_start = datetime.now()
-        logger.info(f"Pipeline starting: {len(indicators)} indicators × {len(countries)} countries")
+        logger.info(f"Pipeline starting: {len(indicators)} indicators x {len(countries)} countries")
         print(f"\n{'='*60}")
         print(f"  World Bank Data Pipeline")
-        print(f"  {len(indicators)} indicators × {len(countries)} countries")
+        print(f"  {len(indicators)} indicators x {len(countries)} countries")
         print(f"  Started at: {total_start.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"{'='*60}\n")
         for indicator_code, indicator_name in indicators.items():
             self._run_log = []
             start_time = datetime.now()
-            print(f"  📊 Fetching: {indicator_name} ({indicator_code})...")
+            print(f"  >> Fetching: {indicator_name} ({indicator_code})...")
             raw_records = await self.fetch_indicator_data(indicator_code, countries)
             csv_path = self.normalize_to_csv(raw_records, indicator_code)
             db_result = self.persist_to_db(raw_records, indicator_code)
@@ -229,11 +262,11 @@ class DataPipeline:
                 "duration_seconds": round(duration, 2),
                 "errors": self._run_log
             }
-            print(f"     ✅ {db_result['inserted']} records saved, {db_result['skipped']} skipped ({duration:.1f}s)")
+            print(f"     [OK] {db_result['inserted']} records saved, {db_result['skipped']} skipped ({duration:.1f}s)")
         total_duration = (datetime.now() - total_start).total_seconds()
         total_records = sum(r["db_inserted"] for r in results.values())
         print(f"\n{'='*60}")
-        print(f"  ✅ Pipeline complete!")
+        print(f"  Pipeline complete!")
         print(f"  Total records: {total_records}")
         print(f"  Total time: {total_duration:.1f}s")
         print(f"  Database: {self.db_path}")
@@ -296,10 +329,11 @@ class DataPipeline:
         conn.close()
         return {"indicators": indicators, "recent_runs": runs}
 if __name__ == "__main__":
-    import os
+    import sys
     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
+    quick = "--quick" in sys.argv
     pipeline = DataPipeline()
-    if os.environ.get("QUICK_RUN"):
+    if quick:
         quick_indicators = {k: v for k, v in list(POPULAR_INDICATORS.items())[:3]}
         quick_countries = POPULAR_COUNTRIES[:5]
         result = asyncio.run(pipeline.run(quick_indicators, quick_countries))

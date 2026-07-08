@@ -1,359 +1,656 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WorldBank Research Copilot</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>WorldBank Copilot</title>
+<meta name="description" content="Ask natural language questions about global economic data — powered by AI and World Bank API.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a28;--bg4:#222235;
-  --border:#2a2a40;--border2:#35355a;
-  --text:#e8e8f0;--text2:#9898b8;--text3:#5a5a80;
-  --accent:#6c63ff;--accent2:#8b83ff;--accent-bg:rgba(108,99,255,0.08);
-  --green:#3ecf7c;--green-bg:rgba(62,207,124,0.1);
-  --orange:#fb923c;--red:#f87171;
-  --radius:12px;--radius-sm:8px;
+
+/* ─────────────────────────── RESET ─────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+textarea{font-family:inherit}
+
+/* ─────────────────────────── TOKENS ─────────────────────────── */
+:root{--ease:.2s ease}
+
+[data-theme="dark"]{
+  /* surfaces */
+  --s0:#000000;
+  --s1:#0d0d0f;
+  --s2:#141418;
+  --s3:#1c1c22;
+  --s4:#242430;
+  --s5:#2d2d3d;
+  /* borders */
+  --b1:rgba(255,255,255,.07);
+  --b2:rgba(255,255,255,.12);
+  --b3:rgba(255,255,255,.18);
+  /* text */
+  --t1:#f2f2f7;
+  --t2:#aeaec0;
+  --t3:#6b6b82;
+  --t4:#3d3d52;
+  /* accent — violet */
+  --a1:#7c5cfc;
+  --a2:#9d85fd;
+  --a3:rgba(124,92,252,.15);
+  --a4:rgba(124,92,252,.08);
+  /* semantic */
+  --ok:#34d399;
+  --err:#f87171;
+  --ok-bg:rgba(52,211,153,.1);
+  --err-bg:rgba(248,113,113,.1);
+  /* chat */
+  --user-bubble:#7c5cfc;
+  --user-text:#fff;
+  --ai-surface:var(--s3);
+  --ai-text:var(--t1);
+  /* misc */
+  --shadow:0 8px 32px rgba(0,0,0,.5);
+  --shadow-sm:0 2px 12px rgba(0,0,0,.35);
+  --scroll:#1c1c22;
+  --scroll-thumb:#3d3d52;
 }
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.app{display:flex;height:100vh}
 
-/* Sidebar */
-.sidebar{width:280px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
-.logo{padding:24px 20px;border-bottom:1px solid var(--border)}
-.logo h1{font-size:16px;font-weight:600;color:var(--accent2)}
-.logo p{font-size:11px;color:var(--text3);margin-top:4px}
-.nav{padding:12px 10px;flex:1}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;margin-bottom:2px}
-.nav-item:hover{background:var(--bg3);color:var(--text)}
-.nav-item.active{background:var(--accent-bg);color:var(--accent2);font-weight:500}
-.nav-item .icon{font-size:16px}
-.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
-
-/* Main */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.header{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.header h2{font-size:15px;font-weight:600}
-.status-badge{font-size:11px;padding:4px 12px;border-radius:20px;background:var(--green-bg);color:var(--green);font-weight:500}
-
-/* Content panels */
-.panel{display:none;flex:1;overflow-y:auto;padding:24px 28px}
-.panel.active{display:flex;flex-direction:column}
-
-/* Research panel */
-.input-section{margin-bottom:24px}
-.input-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
-.input-row{display:flex;gap:10px}
-.query-input{flex:1;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
-.query-input:focus{border-color:var(--accent)}
-.btn{padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
-.btn:hover{background:var(--accent2);transform:translateY(-1px)}
-.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
-.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2)}
-.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
-
-/* Results */
-.result-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;animation:fadeIn .3s ease}
-.result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.result-title{font-size:13px;font-weight:600;color:var(--accent2)}
-.result-meta{font-size:11px;color:var(--text3)}
-.result-body{font-size:13.5px;color:var(--text2);line-height:1.75;white-space:pre-wrap}
-.result-body strong{color:var(--text)}
-
-/* Compare panel */
-.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-.compare-input{padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:inherit;outline:none}
-.compare-input:focus{border-color:var(--accent)}
-
-/* Metrics panel */
-.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
-.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
-.metric-value{font-size:28px;font-weight:700;color:var(--accent2);margin-bottom:4px}
-.metric-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
-
-/* Pipeline panel */
-.pipeline-log{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-family:'Fira Code',monospace;font-size:12px;color:var(--text2);line-height:1.8;max-height:400px;overflow-y:auto;white-space:pre-wrap}
-
-/* Loading */
-.loading{display:flex;align-items:center;gap:8px;padding:16px;color:var(--text3);font-size:13px}
-.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-
-/* Responsive */
-@media(max-width:768px){
-  .sidebar{display:none}
-  .compare-grid{grid-template-columns:1fr}
+[data-theme="light"]{
+  /* ── Warm Linen palette ── */
+  /* Surfaces: creamy off-whites with a gentle amber warmth */
+  --s0:#fdfcf8;          /* sidebar / topbar — warm white */
+  --s1:#f9f7f2;          /* page background — linen */
+  --s2:#f2ede4;          /* secondary surface */
+  --s3:#e9e2d6;          /* hover */
+  --s4:#ddd5c6;          /* active / selected */
+  --s5:#cfc5b4;          /* stronger border */
+  /* Borders */
+  --b1:rgba(100,80,40,.08);
+  --b2:rgba(100,80,40,.14);
+  --b3:rgba(100,80,40,.22);
+  /* Text — warm slate, not cold grey */
+  --t1:#1a1612;          /* near-black with warmth */
+  --t2:#5c5246;          /* stone-600 warm */
+  --t3:#a0917e;          /* muted warm */
+  --t4:#cfc1ae;          /* placeholder */
+  /* Accent — deep amber-violet */
+  --a1:#7c4dff;          /* rich violet */
+  --a2:#9c6fff;          /* lighter violet */
+  --a3:rgba(124,77,255,.12);
+  --a4:rgba(124,77,255,.06);
+  /* Semantic */
+  --ok:#16a34a;
+  --err:#c8321a;
+  --ok-bg:rgba(22,163,74,.09);
+  --err-bg:rgba(200,50,26,.07);
+  /* Chat */
+  --user-bubble:linear-gradient(135deg,#7c4dff,#a67dff);
+  --user-text:#fff;
+  --ai-surface:#ffffff;
+  --ai-text:#1a1612;
+  /* Misc */
+  --shadow:0 8px 32px rgba(60,40,10,.1);
+  --shadow-sm:0 2px 12px rgba(60,40,10,.07);
+  --scroll:#e9e2d6;
+  --scroll-thumb:#cfc1ae;
 }
+
+/* ─────────────────────────── SCROLLBAR ─────────────────────────── */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--scroll)}
+::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:99px}
+
+/* ─────────────────────────── BASE ─────────────────────────── */
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--s1);
+  color:var(--t1);
+  transition:background var(--ease),color var(--ease);
+}
+
+/* ─────────────────────────── LAYOUT ─────────────────────────── */
+.shell{display:flex;height:100vh}
+
+/* ─────────────────────────── SIDEBAR ─────────────────────────── */
+.sidebar{
+  width:248px;
+  background:var(--s0);
+  border-right:1px solid var(--b1);
+  display:flex;flex-direction:column;
+  flex-shrink:0;
+  transition:background var(--ease),border-color var(--ease);
+}
+
+/* logo row */
+.logo{
+  display:flex;align-items:center;gap:10px;
+  padding:18px 16px 14px;
+}
+.logo-mark{
+  width:30px;height:30px;border-radius:8px;
+  background:linear-gradient(135deg,var(--a1),var(--a2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;flex-shrink:0;
+  box-shadow:0 2px 10px var(--a3);
+}
+.logo-name{font-size:13px;font-weight:700;color:var(--t1);letter-spacing:-.01em}
+.logo-tag{font-size:10px;color:var(--t3);margin-top:1px}
+
+/* new chat button */
+.new-btn{
+  margin:0 10px 10px;
+  padding:9px 14px;
+  border-radius:9px;
+  border:1px solid var(--b2);
+  color:var(--t2);
+  font-size:12.5px;font-weight:500;
+  display:flex;align-items:center;gap:7px;
+  transition:all .15s;
+  text-align:left;
+}
+.new-btn:hover{background:var(--a4);border-color:var(--a1);color:var(--a2)}
+.new-btn svg{flex-shrink:0;opacity:.7}
+
+/* section label */
+.sl{
+  padding:6px 16px 4px;
+  font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.08em;
+  color:var(--t4);
+}
+
+/* chat history list */
+.history{flex:1;overflow-y:auto;padding:2px 8px}
+.ci{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:8px;
+  cursor:pointer;transition:background .12s;
+  position:relative;
+}
+.ci:hover{background:var(--s2)}
+.ci.on{background:var(--s3)}
+.ci-ico{font-size:13px;flex-shrink:0;opacity:.6}
+.ci-lbl{
+  flex:1;font-size:12.5px;color:var(--t2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
+}
+.ci.on .ci-lbl{color:var(--t1);font-weight:500}
+.ci-del{
+  opacity:0;color:var(--t3);font-size:12px;
+  padding:2px 4px;border-radius:4px;transition:opacity .12s,color .12s;
+  flex-shrink:0;
+}
+.ci:hover .ci-del{opacity:1}
+.ci-del:hover{color:var(--err)}
+
+/* sidebar footer */
+.sfoot{
+  padding:12px 10px;
+  border-top:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.sfoot-info{font-size:10px;color:var(--t3);line-height:1.6}
+
+/* theme toggle pill */
+.theme-pill{
+  display:flex;align-items:center;gap:5px;
+  padding:6px 10px;border-radius:8px;
+  border:1px solid var(--b2);
+  font-size:11.5px;color:var(--t2);
+  transition:all .15s;
+}
+.theme-pill:hover{border-color:var(--a1);color:var(--a2);background:var(--a4)}
+
+/* ─────────────────────────── MAIN ─────────────────────────── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--s1);transition:background var(--ease)}
+
+/* topbar */
+.topbar{
+  padding:13px 22px;
+  border-bottom:1px solid var(--b1);
+  background:var(--s0);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;transition:background var(--ease),border-color var(--ease);
+}
+.topbar-title{font-size:14px;font-weight:600;color:var(--t1)}
+.topbar-sub{font-size:11px;color:var(--t3);margin-top:2px}
+.status{display:flex;align-items:center;gap:6px;font-size:11.5px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);flex-shrink:0}
+.dot.off{background:var(--err);box-shadow:0 0 6px var(--err)}
+.status-lbl{color:var(--t2)}
+
+/* ─────────────────────────── CHAT AREA ─────────────────────────── */
+.chat-scroll{flex:1;overflow-y:auto;padding:28px 0}
+
+/* empty / welcome */
+.welcome{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:calc(100vh - 180px);gap:14px;padding:40px 24px;text-align:center;
+}
+.welcome-globe{
+  width:64px;height:64px;border-radius:18px;
+  background:linear-gradient(135deg,var(--a1),var(--a2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;margin-bottom:4px;
+  box-shadow:0 6px 28px var(--a3);
+}
+.welcome h2{font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--t1)}
+.welcome p{font-size:14px;color:var(--t2);line-height:1.65;max-width:400px}
+
+/* suggestion chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px}
+.chip{
+  padding:9px 16px;font-size:12.5px;
+  background:var(--s0);
+  border:1px solid var(--b2);
+  border-radius:99px;color:var(--t2);
+  cursor:pointer;transition:all .15s;
+}
+.chip:hover{border-color:var(--a1);color:var(--a2);background:var(--a4);transform:translateY(-1px)}
+
+/* message rows */
+.row{
+  display:flex;
+  padding:6px 22px;
+  max-width:860px;width:100%;margin:0 auto;
+  animation:rise .2s ease;
+}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.row.u{justify-content:flex-end}
+.row.a{justify-content:flex-start;gap:10px}
+
+/* avatars */
+.av{
+  width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;flex-shrink:0;align-self:flex-end;
+}
+.av-ai{background:linear-gradient(135deg,var(--a1),var(--a2));color:#fff;box-shadow:0 2px 10px var(--a3)}
+.av-u{background:var(--s3);border:1px solid var(--b2);color:var(--t2)}
+
+/* bubbles */
+.bub{
+  max-width:70%;font-size:14px;line-height:1.7;
+  border-radius:18px;padding:11px 15px;position:relative;
+}
+.bub.u{
+  background:var(--user-bubble);
+  color:var(--user-text);
+  border-bottom-right-radius:4px;
+  box-shadow:0 2px 14px var(--a3);
+}
+/* dark: solid colour; light: gradient already set via token */
+[data-theme="light"] .bub.u{
+  background:linear-gradient(135deg,#7c4dff,#a67dff);
+}
+[data-theme="light"] .logo-mark{
+  box-shadow:0 4px 20px rgba(124,77,255,.22);
+}
+[data-theme="light"] .sidebar{
+  border-right:1px solid #e4ddd1;
+}
+[data-theme="light"] .chip{
+  background:#fdfcf8;
+  box-shadow:0 1px 4px rgba(100,80,40,.07);
+}
+.bub.a{
+  background:var(--ai-surface);
+  color:var(--ai-text);
+  border:1px solid var(--b1);
+  border-bottom-left-radius:4px;
+  box-shadow:var(--shadow-sm);
+}
+.bub-time{
+  font-size:9.5px;margin-top:5px;display:block;
+  opacity:.45;
+}
+.bub.u .bub-time{text-align:right}
+.bub.a .bub-time{text-align:left}
+.bub.a strong{font-weight:600}
+.bub.a em{font-style:italic;opacity:.85}
+/* markdown-ish newlines handled in JS */
+
+/* typing */
+.typing{display:flex;align-items:center;gap:5px;padding:13px 16px}
+.typing span{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--t3);
+  animation:td .85s infinite;
+}
+.typing span:nth-child(2){animation-delay:.18s}
+.typing span:nth-child(3){animation-delay:.36s}
+@keyframes td{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+
+/* ─────────────────────────── INPUT BAR ─────────────────────────── */
+.input-bar{
+  padding:14px 22px 18px;
+  background:var(--s1);
+  border-top:1px solid var(--b1);
+  flex-shrink:0;
+  transition:background var(--ease),border-color var(--ease);
+}
+.input-shell{
+  max-width:860px;margin:0 auto;
+  display:flex;align-items:flex-end;gap:0;
+  background:var(--s0);
+  border:1.5px solid var(--b2);
+  border-radius:14px;
+  overflow:hidden;
+  transition:border-color .2s,box-shadow .2s;
+  box-shadow:var(--shadow-sm);
+}
+.input-shell:focus-within{
+  border-color:var(--a1);
+  box-shadow:0 0 0 3px var(--a4),var(--shadow-sm);
+}
+.textarea{
+  flex:1;resize:none;border:none;outline:none;
+  background:transparent;
+  color:var(--t1);
+  font-size:14px;line-height:1.65;
+  padding:14px 14px 14px 16px;
+  min-height:52px;max-height:180px;
+  overflow-y:auto;
+  transition:color var(--ease);
+}
+.textarea::placeholder{color:var(--t3)}
+.send{
+  margin:8px;
+  width:36px;height:36px;
+  border-radius:10px;
+  background:var(--a1);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;flex-shrink:0;
+  transition:background .15s,transform .15s,opacity .15s;
+}
+.send:hover{background:var(--a2);transform:scale(1.06)}
+.send:disabled{opacity:.35;transform:none;cursor:default}
+.hint{
+  max-width:860px;margin:6px auto 0;
+  font-size:10.5px;color:var(--t3);text-align:center;
+}
+.hint kbd{
+  font-family:'Geist Mono',monospace;
+  background:var(--s2);border:1px solid var(--b2);
+  border-radius:4px;padding:1px 5px;font-size:9.5px;
+}
+
+/* ─────────────────────────── RESPONSIVE ─────────────────────────── */
+@media(max-width:700px){
+  .sidebar{position:fixed;left:0;top:0;height:100%;z-index:50;transform:translateX(-100%);transition:transform .25s}
+  .sidebar.open{transform:none}
+  .row{padding:6px 14px}
+  .bub{max-width:86%}
+}
+
+/* ─────────────────────────── EMPTY HISTORY ─────────────────────────── */
+.no-history{padding:14px 16px;font-size:11.5px;color:var(--t3);line-height:1.6}
 </style>
 </head>
 <body>
-<div class="app">
-  <!-- Sidebar -->
-  <div class="sidebar">
+<div class="shell">
+
+  <!-- ══════════════════ SIDEBAR ══════════════════ -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- logo -->
     <div class="logo">
-      <h1>🌍 WorldBank Copilot</h1>
-      <p>AI Research Assistant</p>
-    </div>
-    <div class="nav">
-      <div class="nav-item active" onclick="showPanel('research')">
-        <span class="icon">🔍</span> Research
-      </div>
-      <div class="nav-item" onclick="showPanel('compare')">
-        <span class="icon">📊</span> Compare Countries
-      </div>
-      <div class="nav-item" onclick="showPanel('pipeline')">
-        <span class="icon">⚡</span> Data Pipeline
-      </div>
-      <div class="nav-item" onclick="showPanel('metrics')">
-        <span class="icon">📈</span> Metrics
+      <div class="logo-mark">🌍</div>
+      <div>
+        <div class="logo-name">WorldBank Copilot</div>
+        <div class="logo-tag">AI Research Assistant</div>
       </div>
     </div>
-    <div class="sidebar-footer">
-      <div>Powered by Groq · Llama 3.3 70B</div>
-      <div style="margin-top:4px">World Bank API (free)</div>
-    </div>
-  </div>
 
-  <!-- Main content -->
+    <!-- new chat -->
+    <button class="new-btn" onclick="newChat()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      New conversation
+    </button>
+
+    <!-- history -->
+    <div class="sl">Conversations</div>
+    <div class="history" id="history"></div>
+
+    <!-- footer -->
+    <div class="sfoot">
+      <div class="sfoot-info">
+        <div>Groq · Llama 3.3 70B</div>
+        <div>World Bank API</div>
+      </div>
+      <button class="theme-pill" onclick="toggleTheme()" id="theme-btn">
+        <span id="t-icon">☀️</span><span id="t-lbl">Light</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══════════════════ MAIN ══════════════════ -->
   <div class="main">
-    <div class="header">
-      <h2 id="page-title">Research</h2>
-      <span class="status-badge" id="status-badge">● Connected</span>
+
+    <!-- topbar -->
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">New conversation</div>
+        <div class="topbar-sub">Global economic data at your fingertips</div>
+      </div>
+      <div class="status">
+        <div class="dot" id="status-dot"></div>
+        <span class="status-lbl" id="status-lbl">Connecting…</span>
+      </div>
     </div>
 
-    <!-- Research Panel -->
-    <div id="panel-research" class="panel active">
-      <div class="input-section">
-        <div class="input-label">Ask a question about global development</div>
-        <div class="input-row">
-          <input class="query-input" id="research-input" placeholder="e.g., Compare GDP per capita of India and China over the last decade" onkeypress="if(event.key==='Enter')doResearch()">
-          <button class="btn" id="research-btn" onclick="doResearch()">Research</button>
+    <!-- chat scroll area -->
+    <div class="chat-scroll" id="chat-scroll">
+      <div id="welcome" class="welcome">
+        <div class="welcome-globe">🌍</div>
+        <h2>What do you want to research?</h2>
+        <p>Ask about GDP, literacy rates, CO₂ emissions, population, trade — anything tracked by the World Bank.</p>
+        <div class="chips">
+          <span class="chip" onclick="useSuggestion(this)">Compare GDP per capita: India, China, USA</span>
+          <span class="chip" onclick="useSuggestion(this)">Literacy rate trend in Brazil since 2000</span>
+          <span class="chip" onclick="useSuggestion(this)">CO₂ emissions of top 5 economies</span>
+          <span class="chip" onclick="useSuggestion(this)">Life expectancy trends in Africa</span>
+          <span class="chip" onclick="useSuggestion(this)">Unemployment rate: Europe vs Asia</span>
         </div>
       </div>
-      <div id="research-results"></div>
+      <div id="msgs"></div>
     </div>
 
-    <!-- Compare Panel -->
-    <div id="panel-compare" class="panel">
-      <div class="input-section">
-        <div class="input-label">Compare countries on an indicator</div>
-        <div class="compare-grid">
-          <input class="compare-input" id="compare-countries" placeholder="Country codes (comma-separated): IN, CN, US, BR, DE">
-          <input class="compare-input" id="compare-indicator" placeholder="Indicator: NY.GDP.PCAP.CD" value="NY.GDP.PCAP.CD">
-        </div>
-        <button class="btn" id="compare-btn" onclick="doCompare()">Compare (Parallel)</button>
+    <!-- input -->
+    <div class="input-bar">
+      <div class="input-shell">
+        <textarea
+          class="textarea"
+          id="input"
+          placeholder="Ask anything about global economic data…"
+          rows="1"
+          onkeydown="onKey(event)"
+          oninput="grow(this)"
+        ></textarea>
+        <button class="send" id="send-btn" onclick="send()" title="Send (Enter)">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
       </div>
-      <div id="compare-results"></div>
+      <p class="hint">
+        <kbd>Enter</kbd> to send &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> for new line
+      </p>
     </div>
-
-    <!-- Pipeline Panel -->
-    <div id="panel-pipeline" class="panel">
-      <div class="input-section">
-        <div class="input-label">Data Ingestion Pipeline</div>
-        <p style="font-size:13px;color:var(--text2);margin-bottom:16px">
-          Downloads World Bank data, normalizes to CSV, and persists to SQLite. Same pattern as production data engineering.
-        </p>
-        <div style="display:flex;gap:10px">
-          <button class="btn" onclick="runPipeline(true)">🚀 Quick Run (3 indicators)</button>
-          <button class="btn btn-outline" onclick="runPipeline(false)">Full Run (10 indicators)</button>
-          <button class="btn btn-outline" onclick="checkDataStatus()">📋 Check Data Status</button>
-        </div>
-      </div>
-      <div class="pipeline-log" id="pipeline-log">Ready to run pipeline...\n</div>
-    </div>
-
-    <!-- Metrics Panel -->
-    <div id="panel-metrics" class="panel">
-      <div class="input-section">
-        <div class="input-label">Performance Metrics</div>
-        <button class="btn btn-outline" onclick="loadMetrics()" style="margin-bottom:16px">🔄 Refresh</button>
-      </div>
-      <div class="metrics-grid" id="metrics-grid">
-        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">Cache Hits</div></div>
-        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">Cache Hit Rate</div></div>
-        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">P50 Latency</div></div>
-        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">P95 Latency</div></div>
-        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">Total Requests</div></div>
-        <div class="metric-card"><div class="metric-value">-</div><div class="metric-label">Cache Backend</div></div>
-      </div>
-    </div>
-  </div>
-</div>
+  </div><!-- /main -->
+</div><!-- /shell -->
 
 <script>
 const API = 'http://localhost:8002';
 
-function showPanel(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById(`panel-${name}`).classList.add('active');
-  event.currentTarget.classList.add('active');
-  const titles = {research:'Research',compare:'Compare Countries',pipeline:'Data Pipeline',metrics:'Metrics'};
-  document.getElementById('page-title').textContent = titles[name] || name;
-  if(name === 'metrics') loadMetrics();
+/* ══════ THEME ══════ */
+let dark = localStorage.getItem('wb-theme') !== 'light';
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('t-icon').textContent = dark ? '☀️' : '🌙';
+  document.getElementById('t-lbl').textContent  = dark ? 'Light' : 'Dark';
+}
+function toggleTheme(){ dark = !dark; localStorage.setItem('wb-theme', dark ? 'dark' : 'light'); applyTheme(); }
+applyTheme();
+
+/* ══════ SESSION STORE ══════ */
+let sessions = JSON.parse(localStorage.getItem('wb-sessions') || '[]');
+let activeId  = null;
+
+function save(){ localStorage.setItem('wb-sessions', JSON.stringify(sessions)); }
+function byId(id){ return sessions.find(s => s.id === id); }
+
+function newChat(){
+  const id = 'c' + Date.now();
+  sessions.unshift({ id, title: 'New conversation', msgs: [] });
+  save();
+  activate(id);
+  document.getElementById('input').focus();
 }
 
-async function doResearch() {
-  const input = document.getElementById('research-input');
-  const btn = document.getElementById('research-btn');
-  const results = document.getElementById('research-results');
-  if(!input.value.trim()) return;
+function activate(id){
+  activeId = id;
+  renderHistory();
+  renderMsgs();
+  const s = byId(id);
+  document.getElementById('topbar-title').textContent = s ? s.title : 'New conversation';
+}
 
-  btn.disabled = true;
-  btn.textContent = 'Researching...';
-  results.innerHTML = '<div class="loading"><div class="spinner"></div>Analyzing with AI agent (this may take 10-30s)...</div>';
+function delSession(id, e){
+  e.stopPropagation();
+  sessions = sessions.filter(s => s.id !== id);
+  save();
+  if(activeId === id){
+    activeId = null;
+    document.getElementById('msgs').innerHTML = '';
+    document.getElementById('welcome').style.display = '';
+    document.getElementById('topbar-title').textContent = 'New conversation';
+  }
+  renderHistory();
+}
 
-  try {
-    const resp = await fetch(`${API}/research`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({question: input.value})
+/* ══════ HISTORY SIDEBAR ══════ */
+function renderHistory(){
+  const el = document.getElementById('history');
+  if(!sessions.length){
+    el.innerHTML = '<p class="no-history">Your conversations will appear here.</p>';
+    return;
+  }
+  el.innerHTML = sessions.map(s => `
+    <div class="ci ${s.id === activeId ? 'on' : ''}" onclick="activate('${s.id}')">
+      <span class="ci-ico">💬</span>
+      <span class="ci-lbl" title="${esc(s.title)}">${esc(s.title)}</span>
+      <button class="ci-del" onclick="delSession('${s.id}',event)" title="Delete">✕</button>
+    </div>`).join('');
+}
+
+/* ══════ MESSAGE RENDERING ══════ */
+function renderMsgs(){
+  const s = byId(activeId);
+  const msgsEl = document.getElementById('msgs');
+  const wEl    = document.getElementById('welcome');
+  if(!s || !s.msgs.length){ msgsEl.innerHTML = ''; wEl.style.display = ''; return; }
+  wEl.style.display = 'none';
+  msgsEl.innerHTML = s.msgs.map(renderMsg).join('');
+  scrollBottom();
+}
+
+function renderMsg(m){
+  const isU = m.role === 'user';
+  const time = new Date(m.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
+  if(isU){
+    return `<div class="row u">
+      <div class="bub u">${esc(m.content)}<span class="bub-time">${time}</span></div>
+      <div class="av av-u">👤</div>
+    </div>`;
+  }
+  return `<div class="row a">
+    <div class="av av-ai">🌍</div>
+    <div class="bub a">${fmtAI(m.content)}<span class="bub-time">${time}</span></div>
+  </div>`;
+}
+
+function fmtAI(txt){
+  return esc(txt)
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/\n/g,'<br>');
+}
+
+/* ══════ SEND ══════ */
+async function send(){
+  const inp  = document.getElementById('input');
+  const text = inp.value.trim();
+  if(!text) return;
+
+  if(!activeId) newChat();
+  const s = byId(activeId);
+
+  inp.value = '';
+  grow(inp);
+
+  s.msgs.push({role:'user', content:text, ts:Date.now()});
+  if(s.msgs.filter(m => m.role === 'user').length === 1){
+    s.title = text.length > 44 ? text.slice(0,42) + '…' : text;
+    document.getElementById('topbar-title').textContent = s.title;
+  }
+  save();
+  renderMsgs();
+
+  // typing indicator
+  const tid = 'tid' + Date.now();
+  document.getElementById('msgs').insertAdjacentHTML('beforeend',`
+    <div class="row a" id="${tid}">
+      <div class="av av-ai">🌍</div>
+      <div class="bub a"><div class="typing"><span></span><span></span><span></span></div></div>
+    </div>`);
+  scrollBottom();
+  document.getElementById('send-btn').disabled = true;
+
+  try{
+    const r = await fetch(`${API}/research`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({question:text})
     });
-    const data = await resp.json();
-
-    results.innerHTML = `
-      <div class="result-card">
-        <div class="result-header">
-          <div class="result-title">📋 Analysis</div>
-          <div class="result-meta">${new Date().toLocaleTimeString()}</div>
-        </div>
-        <div class="result-body">${escapeHtml(data.analysis || data.detail || 'No analysis returned')}</div>
-      </div>
-    `;
-  } catch(e) {
-    results.innerHTML = `<div class="result-card"><div class="result-body" style="color:var(--red)">Error: ${e.message}. Is the server running? (uvicorn app.main:app --port 8002)</div></div>`;
+    const d = await r.json();
+    const reply = d.analysis || d.detail || 'No response received.';
+    document.getElementById(tid)?.remove();
+    s.msgs.push({role:'ai', content:reply, ts:Date.now()});
+  } catch{
+    document.getElementById(tid)?.remove();
+    s.msgs.push({role:'ai', content:'⚠️ Cannot reach backend. Make sure the server is running on port 8002.', ts:Date.now()});
   }
-  btn.disabled = false;
-  btn.textContent = 'Research';
+
+  save();
+  renderMsgs();
+  renderHistory();
+  document.getElementById('send-btn').disabled = false;
 }
 
-async function doCompare() {
-  const countries = document.getElementById('compare-countries').value || 'IN,CN,US';
-  const indicator = document.getElementById('compare-indicator').value || 'NY.GDP.PCAP.CD';
-  const btn = document.getElementById('compare-btn');
-  const results = document.getElementById('compare-results');
+function useSuggestion(el){ document.getElementById('input').value = el.textContent; send(); }
+function onKey(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } }
+function grow(el){ el.style.height='auto'; el.style.height = Math.min(el.scrollHeight,180)+'px'; }
+function scrollBottom(){ const el=document.getElementById('chat-scroll'); setTimeout(()=>el.scrollTop=el.scrollHeight,40); }
+function esc(t){ const d=document.createElement('div'); d.textContent=String(t??''); return d.innerHTML; }
 
-  btn.disabled = true;
-  results.innerHTML = '<div class="loading"><div class="spinner"></div>Fetching in parallel...</div>';
-
-  try {
-    const codes = countries.split(',').map(c => c.trim().toUpperCase());
-    const resp = await fetch(`${API}/compare`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({countries: codes, indicator})
-    });
-    const data = await resp.json();
-
-    let html = `
-      <div class="result-card">
-        <div class="result-header">
-          <div class="result-title">⚡ Parallel Fetch Results</div>
-          <div class="result-meta">
-            Parallel: ${data.parallel_latency_ms}ms · 
-            Sequential est: ${data.sequential_estimate_ms}ms · 
-            <strong style="color:var(--green)">Speedup: ${data.speedup_percent}%</strong>
-          </div>
-        </div>
-      </div>
-    `;
-
-    if(data.comparison) {
-      data.comparison.forEach(c => {
-        if(c.data && c.data.length > 0) {
-          const latest = c.data[0];
-          html += `
-            <div class="result-card">
-              <div class="result-header">
-                <div class="result-title">${c.country_name || c.country} (${c.country})</div>
-                <div class="result-meta">${c.total_records} data points</div>
-              </div>
-              <div class="result-body">Latest (${latest.year}): <strong>${Number(latest.value).toLocaleString()}</strong>\n${c.indicator_name || ''}</div>
-            </div>`;
-        }
-      });
-    }
-    results.innerHTML = html;
-  } catch(e) {
-    results.innerHTML = `<div class="result-card"><div class="result-body" style="color:var(--red)">Error: ${e.message}</div></div>`;
-  }
-  btn.disabled = false;
-}
-
-async function runPipeline(quick) {
-  const log = document.getElementById('pipeline-log');
-  log.textContent = `Starting ${quick ? 'quick' : 'full'} pipeline run...\n`;
-
-  try {
-    const resp = await fetch(`${API}/pipeline/run?quick=${quick}`, {method:'POST'});
-    const data = await resp.json();
-    log.textContent += `\n✅ Pipeline complete!\n`;
-    log.textContent += `Total records: ${data.total_records}\n`;
-    log.textContent += `Duration: ${data.total_duration_seconds}s\n`;
-    log.textContent += `Database: ${data.database}\n\n`;
-
-    if(data.indicators) {
-      for(const [code, info] of Object.entries(data.indicators)) {
-        log.textContent += `📊 ${info.name}: ${info.db_inserted} inserted (${info.duration_seconds}s)\n`;
-      }
-    }
-  } catch(e) {
-    log.textContent += `\n❌ Error: ${e.message}\n`;
+/* ══════ STATUS ══════ */
+async function checkStatus(){
+  const dot=document.getElementById('status-dot');
+  const lbl=document.getElementById('status-lbl');
+  try{
+    await fetch(`${API}/health`);
+    dot.className='dot'; lbl.textContent='Connected';
+  } catch{
+    dot.className='dot off'; lbl.textContent='Backend offline';
   }
 }
 
-async function checkDataStatus() {
-  const log = document.getElementById('pipeline-log');
-  try {
-    const resp = await fetch(`${API}/data/status`);
-    const data = await resp.json();
-    log.textContent = '📋 Data Status\n' + '='.repeat(50) + '\n\n';
-    if(data.indicators && data.indicators.length) {
-      data.indicators.forEach(i => {
-        log.textContent += `${i.indicator_code}: ${i.records} records, ${i.countries} countries (${i.year_range})\n`;
-      });
-    } else {
-      log.textContent += 'No data yet. Run the pipeline first!\n';
-    }
-  } catch(e) {
-    log.textContent += `Error: ${e.message}\n`;
-  }
-}
-
-async function loadMetrics() {
-  try {
-    const resp = await fetch(`${API}/metrics`);
-    const data = await resp.json();
-    const grid = document.getElementById('metrics-grid');
-    grid.innerHTML = `
-      <div class="metric-card"><div class="metric-value">${data.cache?.hits || 0}</div><div class="metric-label">Cache Hits</div></div>
-      <div class="metric-card"><div class="metric-value">${data.cache?.hit_rate_percent || 0}%</div><div class="metric-label">Cache Hit Rate</div></div>
-      <div class="metric-card"><div class="metric-value">${data.latency?.p50_ms || 0}ms</div><div class="metric-label">P50 Latency</div></div>
-      <div class="metric-card"><div class="metric-value">${data.latency?.p95_ms || 0}ms</div><div class="metric-label">P95 Latency</div></div>
-      <div class="metric-card"><div class="metric-value">${data.latency?.total_requests || 0}</div><div class="metric-label">Total Requests</div></div>
-      <div class="metric-card"><div class="metric-value">${data.cache?.backend || '-'}</div><div class="metric-label">Cache Backend</div></div>
-    `;
-  } catch(e) {
-    document.getElementById('metrics-grid').innerHTML = `<div class="metric-card"><div class="metric-value" style="font-size:14px;color:var(--red)">Server offline</div><div class="metric-label">Start with: uvicorn app.main:app --port 8002</div></div>`;
-  }
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// check server on load
-fetch(`${API}/health`).then(r=>r.json()).then(()=>{
-  document.getElementById('status-badge').textContent = '● Connected';
-}).catch(()=>{
-  document.getElementById('status-badge').textContent = '● Offline';
-  document.getElementById('status-badge').style.background = 'rgba(248,113,113,0.1)';
-  document.getElementById('status-badge').style.color = 'var(--red)';
-});
+/* ══════ INIT ══════ */
+renderHistory();
+checkStatus();
+setInterval(checkStatus, 15000);
 </script>
 </body>
 </html>
